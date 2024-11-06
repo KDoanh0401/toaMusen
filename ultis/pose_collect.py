@@ -4,7 +4,6 @@ import os
 import numpy as np
 import csv
 
-# Initialize MediaPipe Pose
 mpPose = mp.solutions.pose
 Pose = mpPose.Pose()
 mpDraw = mp.solutions.drawing_utils
@@ -15,11 +14,9 @@ cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 data_dir = 'val_dataset'
 
-# Create directory if it doesn't exist
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
 
-# Function to save pose landmarks
 def save_pose_landmarks(frame_id, landmarks, data_dir, label):
     fileName = f"{label}.csv"
     filePath = os.path.join(data_dir, fileName)
