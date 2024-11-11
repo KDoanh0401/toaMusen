@@ -47,8 +47,8 @@ class GCN(torch.nn.Module):
         x = global_mean_pool(x, batch) 
         return F.log_softmax(x, dim=1)  
     
-model = GCN(num_features=3, num_classes=2).to(device)
-model.load_state_dict(torch.load('gcn_hand_gesture_model.pth',map_location=device))
+model = GCN(num_features=3, num_classes=3).to(device)
+model.load_state_dict(torch.load('model\gcn_hand_gesture_model.pth',map_location=device))
 model.eval()
 
 def create_edges():

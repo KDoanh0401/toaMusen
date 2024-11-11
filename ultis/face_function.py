@@ -179,7 +179,7 @@ def recognize_face_realtime(frame, threshold=0.5):
         detection_results = face_detection.process(frame)
 
         if not detection_results.detections:
-            return None, None, None
+            return None, None, None, None
 
         for detection in detection_results.detections:
             bbox = detection.location_data.relative_bounding_box
@@ -205,6 +205,7 @@ def recognize_face_realtime(frame, threshold=0.5):
                     if distances[0][0] > threshold:
                         user_id = indices[0][0]
                         recognized_face = user_map.get(user_id, "Unknown")
+                        recognized_face = f"{recognized_face} ({distances[0][0]:.2f})" 
                         gesture_recognition_active = True
                         gesture_start_time = time.time()   
                     else:
@@ -216,6 +217,7 @@ def recognize_face_realtime(frame, threshold=0.5):
                     recognized_face = None
                     gesture_recognition_active = False
 
+                
                 return recognized_face, bbox, gesture_start_time, gesture_recognition_active
                     
             except Exception as e:

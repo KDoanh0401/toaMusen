@@ -24,7 +24,6 @@ def normalize_row(row):
                 data[axis, :] = 0
         
         return data.T
-
 class GCN(torch.nn.Module):
     def __init__(self, num_features, num_classes):
         super(GCN, self).__init__()
@@ -34,7 +33,7 @@ class GCN(torch.nn.Module):
         self.bn2 = BatchNorm1d(128)
         self.conv3 = GCNConv(128, num_classes)  
 
-        self.dropout = Dropout(0.5)  
+        self.dropout = Dropout(0.3)  
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
@@ -46,9 +45,10 @@ class GCN(torch.nn.Module):
         x = self.dropout(x) 
         x = self.conv3(x, edge_index)
         x = global_mean_pool(x, batch) 
-        return F.log_softmax(x, dim=1)  
+        return F.log_softmax(x, dim=1)
+    
 
-model = GCN(num_features=3, num_classes=2)  
+model = GCN(num_features=3, num_classes=3)  
 model.load_state_dict(torch.load('gcn_hand_gesture_model.pth'))
 model.eval()
 
@@ -61,9 +61,12 @@ def create_edges():
     hand_connections = [
         (0, 1), (1, 2), (2, 3), (3, 4),   
         (0, 5), (5, 6), (6, 7), (7, 8),   
-        (0, 9), (9, 10), (10, 11), (11, 12),
+        (0, 9), (9, 10), (10, 11), (11, 12),  
         (0, 13), (13, 14), (14, 15), (15, 16), 
-        (0, 17), (17, 18), (18, 19), (19, 20)  
+        (0, 17), (17, 18), (18, 19), (19, 20),  
+        (5, 9),  
+        (9, 13),
+        (13, 17) 
     ]
 
     edge_index = torch.tensor(hand_connections, dtype=torch.long).t().contiguous()
@@ -96,7 +99,7 @@ while True:
                     landmarks.append([landmark.x, landmark.y, landmark.z])
 
                 landmarks_df = normalize_row(landmarks)
-                landmarks_df = torch.tensor(landmarks_df, dtype=torch.float)
+                landmarks_df = torch.tensor(landmarks, dtype=torch.float)
                 graph = Data(x=landmarks_df, edge_index=edge_index)
 
                 with torch.no_grad():
@@ -106,10 +109,18 @@ while True:
                     confidence_score = probabilities.max(dim=1).values.item()
 
                 if confidence_score > 0.5:
-                    gesture = 'OK' if predicted_class == 1 else 'NO'
+                    # gesture = 'OK' if predicted_class == 1 else 'None'
+                    # cv2.putText(frame, f'Gesture: {gesture} ({confidence_score:.2f})', (10, 40), 
+                    #         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    match predicted_class :
+                        case 0: 
+                            gesture = 'none'
+                        case 1: 
+                            gesture = 'rock'
+                        case 2:
+                            gesture = 'paper'
                     cv2.putText(frame, f'Gesture: {gesture} ({confidence_score:.2f})', (10, 40), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
+                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         cv2.imshow("Hand Gesture Recognition", frame)
         if cv2.waitKey(1) == ord('q'):
             break

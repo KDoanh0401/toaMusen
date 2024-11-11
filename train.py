@@ -9,7 +9,8 @@ from sklearn.utils import compute_class_weight
 import os
 from pre_process import process_data
 from torch.nn import BatchNorm1d, Dropout
-
+from sklearn.model_selection import train_test_split
+from sklearn.utils import resample
 def load_data(file_path):
     data = pd.read_csv(file_path, header=None)
     return data
@@ -29,29 +30,47 @@ def create_edges():
     edge_index = torch.tensor(hand_connections, dtype=torch.long).t().contiguous()
     return edge_index
 
+# class GCN(torch.nn.Module):
+#     def __init__(self, num_features, num_classes):
+#         super(GCN, self).__init__()
+#         self.conv1 = GCNConv(num_features, 64)  
+#         self.bn1 = BatchNorm1d(64) 
+#         self.conv2 = GCNConv(64, 128)  
+#         self.bn2 = BatchNorm1d(128)
+#         self.conv3 = GCNConv(128, num_classes)  
+
+#         self.dropout = Dropout(0.3)  
+
+#     def forward(self, data):
+#         x, edge_index, batch = data.x, data.edge_index, data.batch
+
+#         x = F.relu(self.bn1(self.conv1(x, edge_index)))
+#         x = self.dropout(x)  
+
+#         x = F.relu(self.bn2(self.conv2(x, edge_index)))
+#         x = self.dropout(x) 
+#         x = self.conv3(x, edge_index)
+#         x = global_mean_pool(x, batch) 
+#         return F.log_softmax(x, dim=1) 
+ 
 class GCN(torch.nn.Module):
     def __init__(self, num_features, num_classes):
         super(GCN, self).__init__()
-        self.conv1 = GCNConv(num_features, 64)  
-        self.bn1 = BatchNorm1d(64) 
-        self.conv2 = GCNConv(64, 128)  
-        self.bn2 = BatchNorm1d(128)
-        self.conv3 = GCNConv(128, num_classes)  
-
-        self.dropout = Dropout(0.5)  
-
+        self.conv1 = GCNConv(num_features, 32)  
+        self.conv2 = GCNConv(32, num_classes)   
+        self.dropout = torch.nn.Dropout(0.3)    
+        
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
 
-        x = F.relu(self.bn1(self.conv1(x, edge_index)))
-        x = self.dropout(x)  
+        x = F.relu(self.conv1(x, edge_index))
+        x = self.dropout(x)
+        x = self.conv2(x, edge_index)
 
-        x = F.relu(self.bn2(self.conv2(x, edge_index)))
-        x = self.dropout(x) 
-        x = self.conv3(x, edge_index)
-        x = global_mean_pool(x, batch) 
-        return F.log_softmax(x, dim=1)  
-    
+        x = global_mean_pool(x, batch)
+        
+        return F.log_softmax(x, dim=1) 
+
 def normalize_data(df):
     def normalize_row(row):
 
@@ -91,7 +110,7 @@ def prepare_data(data_frame, labels):
     
     return graph_data
 
-def train_gcn_model(train_data, train_labels, val_data, val_labels, num_epochs=100, batch_size=32, patience=10, retrain=False):
+def train_gcn_model(train_data, train_labels, val_data, val_labels, num_epochs=100, batch_size=32, patience=5, retrain=False):
 
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
@@ -99,7 +118,7 @@ def train_gcn_model(train_data, train_labels, val_data, val_labels, num_epochs=1
     class_weights = compute_class_weight('balanced', classes=np.unique(train_labels), y=train_labels)
     class_weights_tensor = torch.tensor(class_weights, dtype=torch.float)
 
-    model = GCN(num_features=3, num_classes=2)
+    model = GCN(num_features=3, num_classes=3)
     model_path = 'gcn_hand_gesture_model.pth'
     if retrain and os.path.exists(model_path):
         print("Loading existing model for retraining...")
@@ -158,35 +177,38 @@ def evaluate_model(model, loader, class_weights_tensor, return_loss=False):
     if return_loss:
         return total_loss / len(loader)
 
-    print(classification_report(all_labels, all_preds, target_names=['None', 'OK']))
+    print(classification_report(all_labels, all_preds, target_names=['None', 'Rock','Paper']))
 
-ok_file = "test_data\left.csv"
-no_file = "test_data\\None_left.csv"
-ok_val_file = "test_data\\val_left.csv"
-no_val_file = "test_data\\val_None_left.csv"
-# none_file = "hand_gesture_data\_None.csv"
-# none_val_file = "val_dataset\_None_val.csv"
+ok_file = "hand_gesture_data\\rock.csv"
+no_file = "hand_gesture_data\\paper.csv"
+# ok_val_file = "val_dataset\\OK_val.csv"
+# no_val_file = "test_data\\val_None_left.csv"
+none_file = "hand_gesture_data\\none.csv"
+# none_val_file = "val_dataset\_val_None_one_hand.csv"
 
 ok_data = load_data(ok_file)
 no_data = load_data(no_file)
-# none_data = load_data(none_file)
-
-ok_val_data = load_data(ok_val_file)
-no_val_data = load_data(no_val_file)
+none_data = load_data(none_file)
+# none_data = resample(none_data, replace=False, n_samples=len(ok_data), random_state=42)
+# ok_val_data = load_data(ok_val_file)
+# no_val_data = load_data(no_val_file)
+# none_data, hold = train_test_split(none_data, test_size=0.5, random_state=42)
 # none_val_data = load_data(none_val_file)
-
+none_data, none_val_data = train_test_split(none_data, test_size=0.1, random_state=42)
+ok_data, ok_val_data = train_test_split(ok_data, test_size=0.1, random_state=42)
+no_data, no_val_data = train_test_split(no_data, test_size=0.1, random_state=42)
 ok_data = process_data(ok_data)
 no_data = process_data(no_data)
-# none_data = process_data(none_data)
-train_landmark_data = pd.concat([ok_data, no_data], ignore_index=True)
+none_data = process_data(none_data)
+train_landmark_data = pd.concat([none_data, ok_data, no_data], ignore_index=True)
 
-val_landmark_data = pd.concat([ok_val_data, no_val_data], ignore_index=True)
+val_landmark_data = pd.concat([none_val_data, ok_val_data, no_val_data], ignore_index=True)
 val_landmark_data = normalize_data(val_landmark_data)
 
-train_labels = np.array([1] * len(ok_data) + [0] * len(no_data))
-val_labels = np.array([1] * len(ok_val_data) + [0] * len(no_val_data))
+train_labels = np.array([2] * len(no_data) + [1] * len(ok_data) + [0] * len(none_data))
+val_labels = np.array([2] * len(no_val_data) + [1] * len(ok_val_data) + [0] * len(none_val_data))
 
 train_graph_data = prepare_data(train_landmark_data, train_labels)
 val_graph_data = prepare_data(val_landmark_data, val_labels)
 
-train_gcn_model(train_graph_data, train_labels, val_graph_data, val_labels, num_epochs=50, batch_size=128, retrain=False)
+train_gcn_model(train_graph_data, train_labels, val_graph_data, val_labels, num_epochs=30, batch_size=128, retrain=False)

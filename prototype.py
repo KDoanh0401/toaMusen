@@ -269,7 +269,7 @@ def open_registration_window():
 def recognize_face_realtime(threshold=0.75):
     global index, user_map
 
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     if not cap.isOpened():
@@ -302,7 +302,7 @@ def recognize_face_realtime(threshold=0.75):
 
                 face_crop = frame[y_min:y_min + box_height, x_min:x_min + box_width]
                 if face_crop.size == 0:
-                    # print("Failed to crop the face region.")
+                    print("Failed to crop the face region.")
                     continue
 
                 try:
